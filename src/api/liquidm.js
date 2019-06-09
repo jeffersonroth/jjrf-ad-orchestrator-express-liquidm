@@ -27,6 +27,9 @@ router.get('/', (req, res) => {
         {'Campaigns': 'GET /campaigns/:campaignID'},
         {'Edit': 'PUT /campaigns/:campaignID'},
         {'Budgets': 'PUT /campaigns/edit/:budgetID'}
+      ]},
+      {'Ads': [
+        {'Ads': 'POST /ads'}
       ]}
     ]);
 });
@@ -48,27 +51,27 @@ try {
 axios.defaults.headers.common['authorization'] = AUTH_TOKEN_LIQUIDM;
 
 // PARAM email
-router.param('email', function(req,res, next, email){ next(); });
+router.param('email', (req,res, next, email) => { next(); });
 // PARAM password
-router.param('password', function(req,res, next, password){ next(); });
+router.param('password', (req,res, next, password) => { next(); });
 // PARAM visualReports
-router.param('visualReports', function(req,res, next, visualReports){ next(); });
+router.param('visualReports', (req,res, next, visualReports) => { next(); });
 // PARAM campaignID
-router.param('campaignID', function(req,res, next, campaignID){ next(); });
+router.param('campaignID', (req,res, next, campaignID) => { next(); });
 // PARAM budgetID
-router.param('budgetID', function(req,res, next, budgetID){ next(); });
+router.param('budgetID', (req,res, next, budgetID) => { next(); });
 // PARAM campaignName
-router.param('campaignName', function(req,res, next, campaignName){ next(); });
+router.param('campaignName', (req,res, next, campaignName) => { next(); });
 // PARAM adID
-router.param('adID', function(req,res, next, adID){ next(); });
+router.param('adID', (req,res, next, adID) => { next(); });
 // PARAM targetingID
-router.param('targetingID', function(req,res, next, targetingID){ next(); });
+router.param('targetingID', (req,res, next, targetingID) => { next(); });
 // PARAM creativeID
-router.param('creativeID', function(req,res, next, creativeID){ next(); });
+router.param('creativeID', (req,res, next, creativeID) => { next(); });
 // PARAM settingsID
-router.param('settingsID', function(req,res, next, settingsID){ next(); });
+router.param('settingsID', (req,res, next, settingsID) => { next(); });
 // PARAM uploadFile
-router.param('uploadFile', function(req,res, next, uploadFile){ next(); });
+router.param('uploadFile', (req,res, next, uploadFile) => { next(); });
 
 // UPDATE AUTH
 router.get('/auth/renew',(req,res) => {
@@ -87,7 +90,7 @@ router.get('/auth/renew',(req,res) => {
             params: PARAMS_AUTH,
             headers: HEADERS_AUTH
             })
-            .then(function(AXIOS_RESPONSE) {
+            .then((AXIOS_RESPONSE) => {
                 console.log('AXIOS_RESPONSE.status:', AXIOS_RESPONSE.status);
                 let AXIOS_RESP
                 try {
@@ -110,7 +113,30 @@ router.get('/auth/renew',(req,res) => {
     };
     getAuth(URL_AUTH);
 });
-    
+
+/**
+ * @api {get} /reports/:visualReports Request Visual Report
+ * @apiName GetReports
+ * @apiGroup Reports
+ *
+ * @apiParam {visualReports} Report query.
+ *
+ * @apiSuccess {String} responseQuery Response of the Query.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *     {
+ *       //responseQuery
+ *     }
+ *
+ * @apiError BadRequest It was not possible to request the given query.
+ *
+ * @apiErrorExample Error-Response:
+ *     HTTP/1.1 400 Bad Request
+ *     {
+ *       "error": "Bad Request"
+ *     }
+ */
 // GET VISUAL REPORTS
 router.get('/reports/:visualReports', (req, res, next) => next());
 // API VISUAL REPORTS
@@ -186,7 +212,7 @@ router.get('/campaigns/:campaignID', (req,res) => {
 // PUT EDIT CAMPAIGNS BULK
 router.put('/campaigns/:campaignID', (req, res, next) => next());
 // API PUT EDIT CAMPAIGNS BULK
-router.put('/campaigns/:campaignID',function(req,res){
+router.put('/campaigns/:campaignID', (req,res) => {
     const CAMPAIGN_ID = req.params.campaignID;
     let CAMPAIGN_IDS = CAMPAIGN_ID.split(",");
     let BASE_URL_CONFIG_BULK = [];
@@ -226,7 +252,7 @@ router.put('/campaigns/:campaignID',function(req,res){
 // PUT EDIT CAMPAIGN BUDGETS
 router.put('/campaigns/budgets/:budgetID', (req, res, next) => next());
 // API PUT EDIT CAMPAIGN BUDGETS
-router.put('/campaigns/budgets/:budgetID',function(req,res){
+router.put('/campaigns/budgets/:budgetID', (req,res) => {
     const BUDGET_ID = req.params.budgetID;
     let BUDGET_IDS = BUDGET_ID.split(",");
     let BASE_URL_CONFIG_BULK = [];
@@ -268,8 +294,8 @@ router.put('/campaigns/budgets/:budgetID',function(req,res){
 // POST ADS BULK
 //router.post('/ads/campaignID/:campaignID/campaignName/:campaignName', (req, res, next) => next());
 // API POST ADS BULK
-router.post('/ads',function(req,res){
-    const BASE_URL_ADS = 'http://dsp.adsmovil.com/api/v1/ads';
+router.post('/ads',(req,res) => {
+    const BASE_URL_ADS = 'https://platform.liquidm.com/api/v1/ads';
     const HEADERS_CONFIG = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
         'cache-control': 'no-cache', 
         'Content-Type': 'application/json; charset=UTF-8', 
@@ -292,12 +318,136 @@ router.post('/ads',function(req,res){
     .all(promises)
     .then(axios.spread( (...responses) => {
         responses.forEach( AXIOS_RESPONSE => {
-            console.log(AXIOS_RESPONSE.data.ad);
             (AXIOS_RESPONSE) ? 
                 (ads.ads.push(AXIOS_RESPONSE.data.ad)) : null;
         })
     }))
     .then(() => res.send(ads))
+    .catch(error => res.status(400).json(error))
+});
+
+// POST TARGETING BULK
+// API POST TARGETING BULK
+router.post('/targeting',(req,res) => {
+    const REQUEST_BODY = req.body;
+
+    // POST GEOCODE
+    const BASE_URL_GEOCODE = 'https://platform.liquidm.com/api/v1/geo_locations/geocode';
+    const HEADERS_GEOCODE = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+        'cache-control': 'no-cache', 
+        'content-type': 'application/json; charset=UTF-8', 
+        authorization: AUTH_TOKEN_LIQUIDM };
+
+    // POST MASS CREATE
+    const BASE_URL_MASSCREATE = 'https://platform.liquidm.com/api/v1/geo_locations/mass_create';
+    let HEADERS_MASSCREATE = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+        'cache-control': 'no-cache', 
+        'content-type': 'application/json; charset=UTF-8', 
+        authorization: AUTH_TOKEN_LIQUIDM };
+
+    // PUT TARGETING
+    const HEADERS_TARGETING = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+        'cache-control': 'no-cache', 
+        'content-type': 'application/json; charset=UTF-8', 
+        authorization: AUTH_TOKEN_LIQUIDM };
+
+    // REQUEST BODY
+    let BODY_GEOCODE = [];
+    let BODY_MASSCREATE = [];
+    let BASE_URL_TARGETING = [];
+    let BODY_TARGETING = [];
+    REQUEST_BODY.forEach( (value,i) => {
+        if ('geo_locations' in REQUEST_BODY[i]) {
+            BODY_MASSCREATE.push({ "geo_locations": REQUEST_BODY[i].geo_locations });    // POST MASS CREATE BODY_MASSCREATE
+            Object.keys(REQUEST_BODY[i].geo_locations).forEach( (geoKey) => {
+                if(!!REQUEST_BODY[i].geo_locations[geoKey]['lat'] && !!REQUEST_BODY[i].geo_locations[geoKey]['lng']) {
+                    const COORD_GEOKEY = REQUEST_BODY[i].geo_locations[geoKey]['lat'] + ',' + REQUEST_BODY[i].geo_locations[geoKey]['lng'];
+                    // POST GEOCODE BODY_GEOCODE
+                    BODY_GEOCODE.push({ "address": [] });
+                    BODY_GEOCODE[geoKey].address.push(COORD_GEOKEY);          
+                };
+            });
+        };
+        // PUT TARGETING BASE_URL_TARGETING
+        ('targeting_id' in REQUEST_BODY[i]) ? BASE_URL_TARGETING.push('https://platform.liquidm.com/api/v1/targetings/' + REQUEST_BODY[i].targeting_id) : null;
+        // PUT TARGETING BODY_TARGETING
+        let REQUEST_BODY_TARGETING_VAR = {
+            min_age,
+            max_age,
+            gender,
+            min_age,
+            targeting_type,
+            regions,
+            country,
+            geo_location_ids,
+            ad_ids
+        } = REQUEST_BODY[i];
+        let REQUEST_BODY_TARGETING = [
+            min_age || null,
+            max_age || null,
+            gender || "all",
+            min_age || null,
+            targeting_type || [],
+            regions || [],
+            country || [],
+            geo_location_ids || [],
+            ad_ids || []
+        ];
+        REQUEST_BODY_TARGETING_VAR = REQUEST_BODY_TARGETING;
+        REQUEST_BODY[i].min_age = min_age || null,
+        REQUEST_BODY[i].max_age = max_age || null,
+        REQUEST_BODY[i].gender = gender || "all",
+        REQUEST_BODY[i].min_age = min_age || null,
+        REQUEST_BODY[i].targeting_type = targeting_type || [],
+        REQUEST_BODY[i].regions = regions || [],
+        REQUEST_BODY[i].country = country || [],
+        REQUEST_BODY[i].geo_location_ids = geo_location_ids || [],
+        REQUEST_BODY[i].ad_ids = ad_ids || []
+        BODY_TARGETING.push({
+            "targeting": {
+                "min_age": REQUEST_BODY[i].min_age,
+                "max_age": REQUEST_BODY[i].max_age,
+                "gender": REQUEST_BODY[i].gender,
+                "targeting_type": REQUEST_BODY[i].targeting_type,
+                "geographic_ids": REQUEST_BODY[i].regions,
+                "country_ids": REQUEST_BODY[i].country,
+                "geo_location_ids": REQUEST_BODY[i].geo_location_ids,
+                "ad_ids": REQUEST_BODY[i].ad_ids
+            }
+        });
+    });
+
+    // REQUESTS
+    let answer;
+    let targetings = { targetings: [] };
+    let promises = [];
+    for (let i = 0; i < REQUEST_BODY.length; i++) {
+        const newPromise = axios.post(BASE_URL_MASSCREATE,BODY_MASSCREATE[i],{headers: HEADERS_MASSCREATE});
+        promises.push(newPromise);
+    }
+    axios
+    .all(promises)
+    .then(axios.spread( (...responses) => {
+        responses.forEach( (AXIOS_RESPONSE_MASSCREATE,i) => {
+            targetings.targetings.push({"AXIOS_RESPONSE_MASSCREATE": AXIOS_RESPONSE_MASSCREATE});
+            let GEO_LOCATIONS_IDS = [];
+            if ('geo_locations' in AXIOS_RESPONSE_MASSCREATE.data) {
+                Object.keys(AXIOS_RESPONSE_MASSCREATE.data.geo_locations).forEach( (geoKey) => {
+                    if(!!AXIOS_RESPONSE_MASSCREATE.data.geo_locations[geoKey]['id']) {
+                        const COORD_GEOKEY = AXIOS_RESPONSE_MASSCREATE.data.geo_locations[geoKey]['id'];
+                        GEO_LOCATIONS_IDS.push(COORD_GEOKEY.toString());
+                    };
+                });
+            };
+            BODY_TARGETING[i].targeting.geo_location_ids = ('geo_location_ids' in BODY_TARGETING[i].targeting) ? 
+                GEO_LOCATIONS_IDS : [];
+            return axios.put(BASE_URL_TARGETING[i],BODY_TARGETING[i],{headers: HEADERS_TARGETING})
+            .then( AXIOS_RESPONSE_TARGETING => {
+                targetings.targetings.push({"AXIOS_RESPONSE_TARGETING": AXIOS_RESPONSE_TARGETING});
+            })
+        })
+    }))
+    .then(() => res.send(targeting))
     .catch(error => res.status(400).json(error))
 });
 

@@ -2,6 +2,9 @@
   "name": "jr-ad-orchestrator",
   "version": "1.0.0",
   "description": "adOrchestrator by Jeff Roth",
+  "apidoc": {
+    "title": "adOrchestrator by Jeff Roth - Documentation"
+  },
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -26,6 +29,7 @@
     "helmet": "^3.15.0",
     "morgan": "^1.9.1",
     "node-fetch": "^2.6.0",
+    "path": "^0.12.7",
     "querystring": "^0.2.0",
     "url": "^0.11.0"
   },

@@ -3,6 +3,7 @@ const morgan = require('morgan');
 const helmet = require('helmet');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const path = require('path');
 
 require('dotenv').config();
 
@@ -18,6 +19,9 @@ app.all('*', cors());
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+app.use('/', express.static(__dirname + '/static'));
+app.use('*', express.static(__dirname + '/static'));
 
 app.get('/', (req, res) => {
   res.json({
@@ -36,6 +40,11 @@ app.get("/favicon.ico", function(req, res) {
  res.setHeader("Cache-Control", "public, max-age=2592000");
  res.setHeader("Expires", new Date(Date.now() + 2592000000).toUTCString());
  res.end(favicon);
+});
+
+app.get('/doc', (req, res) => {
+  res.sendFile(__dirname + '/static/doc/index.html');
+  //res.sendFile(path.join(__dirname + '/static/doc/index.html'));
 });
 
 app.use('/api/v1', api);
