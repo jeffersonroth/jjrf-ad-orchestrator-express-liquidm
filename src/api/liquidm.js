@@ -18,9 +18,16 @@ const fullUrl = (req) => {
 
 router.get('/', (req, res) => {
   res.json([
-      { 'auth': '/api/v1/liquidm/auth/email/:email/password/:password'}, 
-      '😳', 
-      '🙄'
+      {'Auth': '/auth/email/:email/password/:password'}, 
+      {'Reports': [
+        {'Reports': 'GET /reports/:visualReports'},
+        {'ReportsDefaultToday': 'GET /reports/default/today'}
+      ]}, 
+      {'Campaigns': [
+        {'Campaigns': 'GET /campaigns/:campaignID'},
+        {'Edit': 'PUT /campaigns/:campaignID'},
+        {'Budgets': 'PUT /campaigns/edit/:budgetID'}
+      ]}
     ]);
 });
 
@@ -176,12 +183,50 @@ router.get('/campaigns/:campaignID', (req,res) => {
     .catch(error => res.status(400).json(error))
 });
 
-// PUT EDIT CAMPAIGN
-router.patch('/campaigns/edit/:campaignID/budget/:budgetID', (req, res, next) => {
-    next();
+// PUT EDIT CAMPAIGNS BULK
+router.put('/campaigns/:campaignID', (req, res, next) => next());
+// API PUT EDIT CAMPAIGNS BULK
+router.put('/campaigns/:campaignID',function(req,res){
+    const CAMPAIGN_ID = req.params.campaignID;
+    let CAMPAIGN_IDS = CAMPAIGN_ID.split(",");
+    let BASE_URL_CONFIG_BULK = [];
+    CAMPAIGN_IDS.forEach( (value,i) => {
+        BASE_URL_CONFIG_BULK.push('https://platform.liquidm.com/api/v1/campaigns/' + value + '?embed=salesforce_opportunities');
+    });
+    const HEADERS_CONFIG = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+        'cache-control': 'no-cache', 
+        'Content-Type': 'application/json; charset=UTF-8', 
+        authorization: AUTH_TOKEN_LIQUIDM };
+    const REQUEST_BODY = req.body;
+    let CONFIG_CONFIG = [];
+    REQUEST_BODY.forEach( (value,i) => {
+        CONFIG_CONFIG.push({
+            headers: REQUEST_BODY[i]
+        });
+    });
+
+    let campaigns = { "campaigns": [] };
+    let promises = [];
+    for (let i = 0; i < CAMPAIGN_IDS.length; i++) {
+        const newPromise = axios.put(BASE_URL_CONFIG_BULK[i],REQUEST_BODY[i],{headers: HEADERS_CONFIG});
+        promises.push(newPromise);
+    }
+    axios
+    .all(promises)
+    .then(axios.spread( (...responses) => {
+        responses.forEach( (AXIOS_RESPONSE,i) => {
+            (AXIOS_RESPONSE) ? 
+                (campaigns.campaigns.push(AXIOS_RESPONSE.data)) : null;
+        })
+    }))
+    .then(() => res.send(campaigns))
+    .catch(error => res.status(400).json(error))
 });
-// API PUT EDIT CAMPAIGN
-router.put('/campaigns/edit/:budgetID',function(req,res){
+
+// PUT EDIT CAMPAIGN BUDGETS
+router.put('/campaigns/budgets/:budgetID', (req, res, next) => next());
+// API PUT EDIT CAMPAIGN BUDGETS
+router.put('/campaigns/budgets/:budgetID',function(req,res){
     const BUDGET_ID = req.params.budgetID;
     let BUDGET_IDS = BUDGET_ID.split(",");
     let BASE_URL_CONFIG_BULK = [];
@@ -212,13 +257,47 @@ router.put('/campaigns/edit/:budgetID',function(req,res){
     .all(promises)
     .then(axios.spread( (...responses) => {
         responses.forEach( (AXIOS_RESPONSE,i) => {
-            //console.log('AXIOS_RESPONSE: ', AXIOS_RESPONSE);
-            console.log('AXIOS_RESPONSE: ');
             (AXIOS_RESPONSE) ? 
                 (campaigns.campaigns.push({campaign_id: CAMPAIGN_IDS[i], budget: AXIOS_RESPONSE.data.budget})) : null;
         })
     }))
     .then(() => res.send(campaigns))
+    .catch(error => res.status(400).json(error))
+});
+
+// POST ADS BULK
+//router.post('/ads/campaignID/:campaignID/campaignName/:campaignName', (req, res, next) => next());
+// API POST ADS BULK
+router.post('/ads',function(req,res){
+    const BASE_URL_ADS = 'http://dsp.adsmovil.com/api/v1/ads';
+    const HEADERS_CONFIG = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+        'cache-control': 'no-cache', 
+        'Content-Type': 'application/json; charset=UTF-8', 
+        authorization: AUTH_TOKEN_LIQUIDM };
+    const REQUEST_BODY = req.body;
+    let CONFIG_CONFIG = [];
+    REQUEST_BODY.forEach( (value,i) => {
+        CONFIG_CONFIG.push({
+            headers: REQUEST_BODY[i]
+        });
+    });
+
+    let ads = { ads: [] };
+    let promises = [];
+    for (let i = 0; i < REQUEST_BODY.length; i++) {
+        const newPromise = axios.post(BASE_URL_ADS,REQUEST_BODY[i],{headers: HEADERS_CONFIG});
+        promises.push(newPromise);
+    }
+    axios
+    .all(promises)
+    .then(axios.spread( (...responses) => {
+        responses.forEach( AXIOS_RESPONSE => {
+            console.log(AXIOS_RESPONSE.data.ad);
+            (AXIOS_RESPONSE) ? 
+                (ads.ads.push(AXIOS_RESPONSE.data.ad)) : null;
+        })
+    }))
+    .then(() => res.send(ads))
     .catch(error => res.status(400).json(error))
 });
 
