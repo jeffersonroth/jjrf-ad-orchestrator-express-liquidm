@@ -38,6 +38,8 @@ try {
     console.error('AUTH_TOKEN_LIQUIDM not found;' + error);
 }
 
+axios.defaults.headers.common['authorization'] = AUTH_TOKEN_LIQUIDM;
+
 // PARAM email
 router.param('email', function(req,res, next, email){ next(); });
 // PARAM password
@@ -103,8 +105,17 @@ router.get('/auth/renew',(req,res) => {
 });
     
 // GET VISUAL REPORTS
-router.get('/reports/:visualReports', (req, res, next) => {
-    next();
+router.get('/reports/:visualReports', (req, res, next) => next());
+// API VISUAL REPORTS
+router.get('/reports/:visualReports', (req,res) => {
+    const REQ_PARAMS_REPORT = req.params.visualReports;
+    const BASE_URL_REPORT = 'https://platform.liquidm.com/visual_reports.json?auth_token=' + AUTH_TOKEN_LIQUIDM + '&' + REQ_PARAMS_REPORT;
+    const getReport = async () => {
+        await axios.get(BASE_URL_REPORT)
+        .then(AXIOS_RESPONSE => res.send(AXIOS_RESPONSE.data))
+        .catch(error => res.status(400).json(error))
+    };
+    getReport();
 });
 // API VISUAL REPORTS DEFAULT TODAY
 router.get('/reports/default/today',(req,res) => {
@@ -127,52 +138,15 @@ router.get('/reports/default/today',(req,res) => {
     };
     getReport();
 });
-// API VISUAL REPORTS
-router.get('/reports/:visualReports', (req,res) => {
-    const REQ_PARAMS_REPORT = req.params.visualReports;
-    const BASE_URL_REPORT = 'https://platform.liquidm.com/visual_reports.json?auth_token=' + AUTH_TOKEN_LIQUIDM + '&' + REQ_PARAMS_REPORT;
-    const getReport = async () => {
-        await axios.get(BASE_URL_REPORT)
-        .then(AXIOS_RESPONSE => res.send(AXIOS_RESPONSE.data))
-        .catch(error => res.status(400).json(error))
-    };
-    getReport();
-});
-
-// GET CAMPAIGN COMPLETE
-router.get('/campaign/complete/:campaignID', (req, res, next) => {
-    next();
-});
-//API GET CAMPAIGN COMPLETE
-router.get('/campaign/complete/:campaignID', (req,res) => {
-    const METHOD_CAMPAIGN = 'GET';
-    const BASE_URL_CAMPAIGN = 'https://platform.liquidm.com/api/v1/campaigns';
-    const CAMPAIGN_ID = req.params.campaignID;
-    const HEADERS_CAMPAIGN = { 'cache-control': 'no-cache', authorization: AUTH_TOKEN_LIQUIDM };
-    const PARAMS_CAMPAIGN = { embed: 'ads(embed(targeting,setting,supply))', id: CAMPAIGN_ID };
-    const getCampaign = async () => {
-        await axios({
-            method: METHOD_CAMPAIGN,
-            url: BASE_URL_CAMPAIGN,
-            params: PARAMS_CAMPAIGN,
-            headers: HEADERS_CAMPAIGN
-        })
-        .then(AXIOS_RESPONSE => res.send(AXIOS_RESPONSE.data))
-        .catch(error => res.status(400).json(error))
-    };
-    getCampaign();
-});
 
 // GET CAMPAIGN BULK
-router.get('/campaign/bulk/:campaignID', (req, res, next) => {
-    next();
-});
+router.get('/campaigns/:campaignID', (req, res, next) => next());
 //API GET CAMPAIGN BULK
-router.get('/campaign/bulk/:campaignID', (req,res) => {
+router.get('/campaigns/:campaignID', (req,res) => {
     const METHOD_CAMPAIGN = 'GET';
     const BASE_URL_CAMPAIGN = 'https://platform.liquidm.com/api/v1/campaigns';
     const CAMPAIGN_ID = req.params.campaignID;
-    let CAMPAIGN_IDS = CAMPAIGN_ID.split("&");
+    let CAMPAIGN_IDS = CAMPAIGN_ID.split(",");
     const HEADERS_CAMPAIGN = { 'cache-control': 'no-cache', authorization: AUTH_TOKEN_LIQUIDM };
     let PARAMS_CAMPAIGNS = [];
     CAMPAIGN_IDS.forEach( (value,i) => {
@@ -194,115 +168,58 @@ router.get('/campaign/bulk/:campaignID', (req,res) => {
     .all(promises)
     .then(axios.spread( (...responses) => {
         responses.forEach( AXIOS_RESPONSE => {
-            console.log(`AXIOS_RESPONSE: ${AXIOS_RESPONSE}`);
-            const boolData = (((AXIOS_RESPONSE || {}).data || {}).campaigns[0] || {}).id ? true : false;
-            console.log(`boolData: ${boolData}`);
-            const boolCampaigns = (campaigns || {}).campaigns[0] ? true : false;
-            console.log(`boolCampaigns: ${boolCampaigns}`);
-            const withTernary = ({
-                conditionA, conditionB
-            }) => (
-                (!conditionA)
-                    ? campaigns.campaigns.push(AXIOS_RESPONSE.data.campaigns[0])
-                    : (conditionB)
-                    ? console.log("both true")
-                    : console.log("hola")
-            );
-            withTernary(boolData, boolCampaigns);
+            ((((AXIOS_RESPONSE || {}).data || {}).campaigns[0] || {}).id) ? 
+                campaigns.campaigns.push(AXIOS_RESPONSE.data.campaigns[0]) : null;
         })
     }))
     .then(() => res.send(campaigns))
     .catch(error => res.status(400).json(error))
 });
 
-// GET CAMPAIGN
-router.get('/campaign/:campaignID', (req, res, next) => {
+// PUT EDIT CAMPAIGN
+router.patch('/campaigns/edit/:campaignID/budget/:budgetID', (req, res, next) => {
     next();
 });
-//API GET CAMPAIGN
-router.get('/campaign/:campaignID', (req,res) => {
-    var METHOD_CAMPAIGN = 'GET';
-    var BASE_URL_CAMPAIGN = 'https://platform.liquidm.com/api/v1/campaigns';
-    var CAMPAIGN_ID = req.params.campaignID;
-    var HEADERS_CAMPAIGN = { 'cache-control': 'no-cache', authorization: AUTH_TOKEN_LIQUIDM };
-    var PARAMS_CAMPAIGN = { embed: 'ads(embed(targeting,setting,supply))', id: CAMPAIGN_ID };
-    const getCampaign = async () => {
-        await axios({
-            method: METHOD_CAMPAIGN,
-            url: BASE_URL_CAMPAIGN,
-            params: PARAMS_CAMPAIGN,
-            headers: HEADERS_CAMPAIGN
+// API PUT EDIT CAMPAIGN
+router.put('/campaigns/edit/:budgetID',function(req,res){
+    const BUDGET_ID = req.params.budgetID;
+    let BUDGET_IDS = BUDGET_ID.split(",");
+    let BASE_URL_CONFIG_BULK = [];
+    BUDGET_IDS.forEach( (value,i) => {
+        BASE_URL_CONFIG_BULK.push('https://platform.liquidm.com/api/v1/budgets/' + value);
+    });
+    const HEADERS_CONFIG = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+        'cache-control': 'no-cache', 
+        'Content-Type': 'application/json; charset=UTF-8', 
+        authorization: AUTH_TOKEN_LIQUIDM };
+    const REQUEST_BODY = req.body;
+    let CAMPAIGN_IDS= [];
+    let CONFIG_CONFIG = [];
+    REQUEST_BODY.forEach( (value,i) => {
+        CONFIG_CONFIG.push({
+            headers: REQUEST_BODY[i]
+        });
+        CAMPAIGN_IDS.push(REQUEST_BODY[i].budget.campaign_id);
+    });
+
+    let campaigns = { "campaigns": [] };
+    let promises = [];
+    for (let i = 0; i < BUDGET_IDS.length; i++) {
+        const newPromise = axios.put(BASE_URL_CONFIG_BULK[i],REQUEST_BODY[i],{headers: HEADERS_CONFIG});
+        promises.push(newPromise);
+    }
+    axios
+    .all(promises)
+    .then(axios.spread( (...responses) => {
+        responses.forEach( (AXIOS_RESPONSE,i) => {
+            //console.log('AXIOS_RESPONSE: ', AXIOS_RESPONSE);
+            console.log('AXIOS_RESPONSE: ');
+            (AXIOS_RESPONSE) ? 
+                (campaigns.campaigns.push({campaign_id: CAMPAIGN_IDS[i], budget: AXIOS_RESPONSE.data.budget})) : null;
         })
-        .then(AXIOS_RESPONSE => {
-            let resp
-            try {
-                resp = AXIOS_RESPONSE.data;
-                if (('campaigns' in resp) == true) {
-                    if (('id' in resp.campaigns[0]) == true) {
-                        if (resp.campaigns[0].id.toString() === CAMPAIGN_ID) {
-                            var CAMPAIGNS_ROOT = resp.campaigns[0];
-                            var CAMPAIGN_NAME = CAMPAIGNS_ROOT.name;
-                            var ACCOUNT_ID = CAMPAIGNS_ROOT.account_id;
-                            var CAMPAIGN_UNIT_TYPE = CAMPAIGNS_ROOT.unit_type;
-                            var CAMPAIGN_CURRENCY = CAMPAIGNS_ROOT.currency;
-                            var CAMPAIGN_TIMEZONE = CAMPAIGNS_ROOT.timezone;
-                            var CAMPAIGN_ADS = CAMPAIGNS_ROOT.ads;
-                            var CAMPAIGN_ADS_VALUES = {};
-                            var CAMPAIGN_ADS_INFO = {};
-                            Object.keys(CAMPAIGN_ADS).forEach(function (adsKey) {
-                                if(!!CAMPAIGN_ADS[adsKey]['campaign_id']) {
-                                    if(CAMPAIGN_ADS[adsKey]['campaign_id'].toString() === CAMPAIGN_ID) {
-                                        CAMPAIGN_ADS_INFO[CAMPAIGN_ADS[adsKey]['id'].toString()] = {
-                                            campaign_id: CAMPAIGN_ADS[adsKey]['campaign_id'],
-                                            ad_id: CAMPAIGN_ADS[adsKey]['id'],
-                                            creative_id: CAMPAIGN_ADS[adsKey]['creative_id'],
-                                            targeting_id: CAMPAIGN_ADS[adsKey]['targeting']['id'],
-                                            setting_id: CAMPAIGN_ADS[adsKey]['setting']['id'],
-                                            supply_id: CAMPAIGN_ADS[adsKey]['supply']['id'],
-                                            targeting: CAMPAIGN_ADS[adsKey]['targeting'],
-                                            setting: CAMPAIGN_ADS[adsKey]['setting'],
-                                            supply: CAMPAIGN_ADS[adsKey]['supply']
-                                        };
-                                        CAMPAIGN_ADS_VALUES[adsKey] = CAMPAIGN_ADS[adsKey]['name'].toString();
-                                        CAMPAIGN_ADS_VALUES = JSON.parse(
-                                            JSON.stringify(CAMPAIGN_ADS_VALUES)
-                                                .split('\"' + adsKey +'\":')
-                                                .join('\"' + CAMPAIGN_ADS[adsKey]['id'].toString() + '\":')
-                                        );      
-                                    };            
-                                };
-                            });
-                            var dataJSON = {
-                                account_id: ACCOUNT_ID,
-                                campaignID: CAMPAIGN_ID,
-                                name: CAMPAIGN_NAME,
-                                unit_type: CAMPAIGN_UNIT_TYPE,
-                                currency: CAMPAIGN_CURRENCY,
-                                timezone: CAMPAIGN_TIMEZONE,
-                                summary: CAMPAIGN_ADS_VALUES,
-                                ads: CAMPAIGN_ADS_INFO
-                            };AXIOS_RESPONSE.data = dataJSON;
-                            res.send(dataJSON);
-                        } else {
-                        console.log('CAMPAIGN_ID does not match');
-                        res.status(404).json({ error: 'CAMPAIGN_ID does not match' });                        
-                        };
-                    } else {
-                        console.log('CAMPAIGN_ID not found');
-                        res.status(404).json({ error: 'CAMPAIGN_ID' + CAMPAIGN_ID + ' not found' });
-                    };
-                } else {
-                    console.log('CAMPAIGN_ID not found');
-                    res.status(404).json({ error: 'CAMPAIGN_ID' + CAMPAIGN_ID + ' not found' });
-                };
-            } catch (error) {
-                console.log('CAMPAIGN_ID not found');
-                res.status(404).json({ error: 'CAMPAIGN_ID' + CAMPAIGN_ID + ' not found' });
-            }
-        })
-        .catch(error => res.status(400).json(error))
-    };
-    getCampaign();
+    }))
+    .then(() => res.send(campaigns))
+    .catch(error => res.status(400).json(error))
 });
 
 module.exports = router;
