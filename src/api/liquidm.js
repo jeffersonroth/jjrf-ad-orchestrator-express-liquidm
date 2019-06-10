@@ -1,12 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const fetch = require('node-fetch');
 const axios = require('axios');
 const url = require('url');
-
-//axios.defaults.headers.common['Access-Control-Allow-Origin'] = '*';
-//axios.defaults.headers.common['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept';
-//axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+const cache = require('memory-cache');
 
 const fullUrl = (req) => {
     return url.format({
@@ -30,88 +26,65 @@ router.get('/', (req, res) => {
       ]},
       {'Ads': [
         {'Ads': 'POST /ads'}
+      ]},
+      {'Targeting': [
+        {'Targeting': 'POST /targeting'}
       ]}
     ]);
 });
 
 // LIQUIDM_AUTH
-const LIQUIDM_AUTH = process.env.LIQUIDM_AUTH_TOKEN || '';
-let AUTH_TOKEN_LIQUIDM
-try {
-    AUTH_TOKEN_LIQUIDM = LIQUIDM_AUTH; 
-    if (AUTH_TOKEN_LIQUIDM !== '') {
-        console.log('AUTH_TOKEN_LIQUIDM: ' + AUTH_TOKEN_LIQUIDM);
-    } else {
-        console.log('AUTH_TOKEN_LIQUIDM is Empty');
-    }
-} catch (error) {
-    console.error('AUTH_TOKEN_LIQUIDM not found;' + error);
-}
+let AUTH_TOKEN_LIQUIDM = (process.env.LIQUIDM_AUTH_TOKEN) ? 
+process.env.LIQUIDM_AUTH_TOKEN : '';
+const getAuth = async () => {
+    const BASE_URL = 'https://platform.liquidm.com/api/auth';
+    const REQ_PARAMS_EMAIL = process.env.LIQUIDM_AUTH_EMAIL;
+    const REQ_PARAMS_PASSWORD = process.env.LIQUIDM_AUTH_PASSWORD;
+    const HEADERS = { 'cache-control': 'no-cache' };
+    const PARAMS = { email: REQ_PARAMS_EMAIL, password: REQ_PARAMS_PASSWORD, api: 'true' };
+    const CONFIG = Object.assign({}, {headers: HEADERS}, {params: PARAMS});
+    return await axios.get(BASE_URL,CONFIG)
+    .then(AXIOS_RESPONSE => {
+        AXIOS_RESPONSE.data.auth_token;
+        AUTH_TOKEN_LIQUIDM = AXIOS_RESPONSE.data.auth_token;
+        cache.put('AUTH_TOKEN_LIQUIDM', AUTH_TOKEN_LIQUIDM);
+    })
+    .catch(error => error);
+};
+//console.log(AUTH_TOKEN_LIQUIDM);
+cache.put('AUTH_TOKEN_LIQUIDM', AUTH_TOKEN_LIQUIDM);
+//console.log("CACHE: ",cache.get('AUTH_TOKEN_LIQUIDM'));
 
-axios.defaults.headers.common['authorization'] = AUTH_TOKEN_LIQUIDM;
+axios.defaults.headers.common['authorization'] = cache.get('AUTH_TOKEN_LIQUIDM');
 
 // PARAM email
-router.param('email', (req,res, next, email) => { next(); });
+router.param('email', (req,res, next, email) => next());
 // PARAM password
-router.param('password', (req,res, next, password) => { next(); });
+router.param('password', (req,res, next, password) => next());
 // PARAM visualReports
-router.param('visualReports', (req,res, next, visualReports) => { next(); });
+router.param('visualReports', (req,res, next, visualReports) => next());
 // PARAM campaignID
-router.param('campaignID', (req,res, next, campaignID) => { next(); });
+router.param('campaignID', (req,res, next, campaignID) => next());
 // PARAM budgetID
-router.param('budgetID', (req,res, next, budgetID) => { next(); });
+router.param('budgetID', (req,res, next, budgetID) => next());
 // PARAM campaignName
-router.param('campaignName', (req,res, next, campaignName) => { next(); });
+router.param('campaignName', (req,res, next, campaignName) => next());
 // PARAM adID
-router.param('adID', (req,res, next, adID) => { next(); });
+router.param('adID', (req,res, next, adID) => next());
 // PARAM targetingID
-router.param('targetingID', (req,res, next, targetingID) => { next(); });
+router.param('targetingID', (req,res, next, targetingID) => next());
 // PARAM creativeID
-router.param('creativeID', (req,res, next, creativeID) => { next(); });
+router.param('creativeID', (req,res, next, creativeID) => next());
 // PARAM settingsID
-router.param('settingsID', (req,res, next, settingsID) => { next(); });
+router.param('settingsID', (req,res, next, settingsID) => next());
 // PARAM uploadFile
-router.param('uploadFile', (req,res, next, uploadFile) => { next(); });
+router.param('uploadFile', (req,res, next, uploadFile) => next());
 
 // UPDATE AUTH
-router.get('/auth/renew',(req,res) => {
-    const URL_AUTH = '/auth/renew';
-    const METHOD_AUTH = 'GET';
-    const BASE_URL_AUTH = 'https://platform.liquidm.com/api/auth';
-    const REQ_PARAMS_EMAIL = process.env.LIQUIDM_AUTH_TOKEN_EMAIL;
-    const REQ_PARAMS_PASSWORD = process.env.LIQUIDM_AUTH_TOKEN_PASSWORD;
-    const HEADERS_AUTH = { 'cache-control': 'no-cache' };
-    const PARAMS_AUTH = { email: REQ_PARAMS_EMAIL, password: REQ_PARAMS_PASSWORD, api: 'true' };
-    const getAuth = async URL_AUTH => {
-        try {
-            const AXIOS_RESPONSE = await axios({
-            method: METHOD_AUTH,
-            url: BASE_URL_AUTH,
-            params: PARAMS_AUTH,
-            headers: HEADERS_AUTH
-            })
-            .then((AXIOS_RESPONSE) => {
-                console.log('AXIOS_RESPONSE.status:', AXIOS_RESPONSE.status);
-                let AXIOS_RESP
-                try {
-                    AXIOS_RESP = AXIOS_RESPONSE.data;
-                    if (('auth_token' in AXIOS_RESP) == true) {
-                        process.env.LIQUIDM_AUTH_TOKEN = AXIOS_RESP
-                        res.send(AXIOS_RESP);
-                    } else {
-                        console.log('Credentials-invalid');
-                        res.status(404).json({ error: 'credentials-invalid' });
-                    };
-                } catch (error) {
-                    console.log('Cannot get new Token');
-                    res.status(404).json({ error: 'credentials-invalid' });
-                }
-            });;
-        } catch (error) {
-            console.log(error);
-        };
-    };
-    getAuth(URL_AUTH);
+router.get('/auth/renew', async (req,res) => {
+    await getAuth()
+    .then(AXIOS_RESPONSE => res.send(AXIOS_RESPONSE))
+    .catch(error => res.status(400).json(error));
 });
 
 /**
@@ -137,63 +110,64 @@ router.get('/auth/renew',(req,res) => {
  *       "error": "Bad Request"
  *     }
  */
+// VISUAL REPORTS
+const getReport = async (REQ_PARAMS) => {
+    const BASE_URL_REPORT = 'https://platform.liquidm.com/visual_reports.json?auth_token=' + cache.get('AUTH_TOKEN_LIQUIDM') + '&' + REQ_PARAMS;
+    return await axios.get(BASE_URL_REPORT)
+        .then(AXIOS_RESPONSE => AXIOS_RESPONSE.data)
+        .catch(error => error);
+};
 // GET VISUAL REPORTS
 router.get('/reports/:visualReports', (req, res, next) => next());
 // API VISUAL REPORTS
-router.get('/reports/:visualReports', (req,res) => {
-    const REQ_PARAMS_REPORT = req.params.visualReports;
-    const BASE_URL_REPORT = 'https://platform.liquidm.com/visual_reports.json?auth_token=' + AUTH_TOKEN_LIQUIDM + '&' + REQ_PARAMS_REPORT;
-    const getReport = async () => {
-        await axios.get(BASE_URL_REPORT)
-        .then(AXIOS_RESPONSE => res.send(AXIOS_RESPONSE.data))
-        .catch(error => res.status(400).json(error))
-    };
-    getReport();
+router.get('/reports/:visualReports', async (req,res) => {
+    const REQ_PARAMS = req.params.visualReports;
+    await getReport(REQ_PARAMS)
+    .then(AXIOS_RESPONSE => res.send(AXIOS_RESPONSE))
+    .catch(error => res.status(400).json(error));
 });
 // API VISUAL REPORTS DEFAULT TODAY
-router.get('/reports/default/today',(req,res) => {
-    const BODY_REPORT_FORM_DATA = {
-        'auth_token': AUTH_TOKEN_LIQUIDM,
-        'dimensions': 'advertiser_account,campaign,ad',
-        'metrics': 'bids,ais,clicks,video_firstquartile,video_midpoint,video_thirdquartile,video_complete,earnings,earnings_with_margin',
-        'granularity': 'all',
-        'currency': 'USD',
-        'time_zone': 'Bogota',
-        'name': null,
-        'date_range': 'Today'
-    };
-    const REQ_PARAMS_REPORT = 'dimensions=advertiser_customer%2Ccampaign%2Cad&metrics=bids%2Cais%2Cclicks%2Cvideo_firstquartile%2Cvideo_midpoint%2Cvideo_thirdquartile%2Cvideo_complete%2Cearnings%2Cearnings_with_margin&granularity=all&currency=USD&time_zone=Bogota&name=&date_range=Today';
-    const BASE_URL_REPORT = 'https://platform.liquidm.com/visual_reports.json?auth_token=' + AUTH_TOKEN_LIQUIDM + '&' + REQ_PARAMS_REPORT;
-    const getReport = async () => {
-        await axios.get(BASE_URL_REPORT)
-        .then(AXIOS_RESPONSE => res.send(AXIOS_RESPONSE.data))
-        .catch(error => res.status(400).json(error))
-    };
-    getReport();
+router.get('/reports/default/today', async (req,res) => {
+    const REQ_PARAMS = 'dimensions=advertiser_customer%2Ccampaign%2Cad&metrics=bids%2Cais%2Cclicks%2Cvideo_firstquartile%2Cvideo_midpoint%2Cvideo_thirdquartile%2Cvideo_complete%2Cearnings%2Cearnings_with_margin&granularity=all&currency=USD&time_zone=Bogota&name=&date_range=Today';
+    await getReport(REQ_PARAMS)
+    .then(AXIOS_RESPONSE => res.send(AXIOS_RESPONSE))
+    .catch(error => res.status(400).json(error));
 });
 
+// CAMPAIGNS
+const getCampaign = async (CAMPAIGN_ID) => {
+    const METHOD = 'GET';
+    const BASE_URL = 'https://platform.liquidm.com/api/v1/campaigns';
+    const PARAMS = { embed: 'ads(embed(targeting,setting,supply))', id: CAMPAIGN_ID };
+    const HEADERS = { 'cache-control': 'no-cache', authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
+    return await axios({
+        method: METHOD,
+        url: BASE_URL,
+        params: PARAMS,
+        headers: HEADERS
+    })
+    .then(AXIOS_RESPONSE => AXIOS_RESPONSE.data.campaigns)
+    .catch(error => error);
+};
 // GET CAMPAIGN BULK
 router.get('/campaigns/:campaignID', (req, res, next) => next());
 //API GET CAMPAIGN BULK
 router.get('/campaigns/:campaignID', (req,res) => {
-    const METHOD_CAMPAIGN = 'GET';
-    const BASE_URL_CAMPAIGN = 'https://platform.liquidm.com/api/v1/campaigns';
+    const METHOD = 'GET';
+    const BASE_URL = 'https://platform.liquidm.com/api/v1/campaigns';
     const CAMPAIGN_ID = req.params.campaignID;
     let CAMPAIGN_IDS = CAMPAIGN_ID.split(",");
-    const HEADERS_CAMPAIGN = { 'cache-control': 'no-cache', authorization: AUTH_TOKEN_LIQUIDM };
-    let PARAMS_CAMPAIGNS = [];
-    CAMPAIGN_IDS.forEach( (value,i) => {
-        PARAMS_CAMPAIGNS.push({ embed: 'ads(embed(targeting,setting,supply))', id: value });
-    });
-
-    let campaigns = { "campaigns": [] };
+    const HEADERS = { 'cache-control': 'no-cache', authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
+    let PARAMS = [];
+    CAMPAIGN_IDS.forEach( CAMPAIGN => PARAMS.push({ embed: 'ads(embed(targeting,setting,supply))', id: CAMPAIGN }));
+    let RESPONSE_JSON = { "campaigns": [] };
     let promises = [];
-    for (let i = 0; i < PARAMS_CAMPAIGNS.length; i++) {
+    for (let i = 0; i < PARAMS.length; i++) {
         const newPromise = axios({
-            method: METHOD_CAMPAIGN,
-            url: BASE_URL_CAMPAIGN,
-            params: PARAMS_CAMPAIGNS[i],
-            headers: HEADERS_CAMPAIGN
+            method: METHOD,
+            url: BASE_URL,
+            params: PARAMS[i],
+            headers: HEADERS
         });
         promises.push(newPromise);
     }
@@ -202,11 +176,11 @@ router.get('/campaigns/:campaignID', (req,res) => {
     .then(axios.spread( (...responses) => {
         responses.forEach( AXIOS_RESPONSE => {
             ((((AXIOS_RESPONSE || {}).data || {}).campaigns[0] || {}).id) ? 
-                campaigns.campaigns.push(AXIOS_RESPONSE.data.campaigns[0]) : null;
+            RESPONSE_JSON.campaigns.push(AXIOS_RESPONSE.data.campaigns[0]) : null;
         })
     }))
-    .then(() => res.send(campaigns))
-    .catch(error => res.status(400).json(error))
+    .then(() => res.send(RESPONSE_JSON))
+    .catch(error => res.status(400).json(error));
 });
 
 // PUT EDIT CAMPAIGNS BULK
@@ -215,26 +189,18 @@ router.put('/campaigns/:campaignID', (req, res, next) => next());
 router.put('/campaigns/:campaignID', (req,res) => {
     const CAMPAIGN_ID = req.params.campaignID;
     let CAMPAIGN_IDS = CAMPAIGN_ID.split(",");
-    let BASE_URL_CONFIG_BULK = [];
-    CAMPAIGN_IDS.forEach( (value,i) => {
-        BASE_URL_CONFIG_BULK.push('https://platform.liquidm.com/api/v1/campaigns/' + value + '?embed=salesforce_opportunities');
-    });
-    const HEADERS_CONFIG = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+    let BASE_URL= [];
+    CAMPAIGN_IDS.forEach( CAMPAIGN => BASE_URL.push('https://platform.liquidm.com/api/v1/campaigns/' + CAMPAIGN + '?embed=salesforce_opportunities'));
+    const HEADERS = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
         'cache-control': 'no-cache', 
         'Content-Type': 'application/json; charset=UTF-8', 
-        authorization: AUTH_TOKEN_LIQUIDM };
+        authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
     const REQUEST_BODY = req.body;
-    let CONFIG_CONFIG = [];
-    REQUEST_BODY.forEach( (value,i) => {
-        CONFIG_CONFIG.push({
-            headers: REQUEST_BODY[i]
-        });
-    });
 
     let campaigns = { "campaigns": [] };
     let promises = [];
     for (let i = 0; i < CAMPAIGN_IDS.length; i++) {
-        const newPromise = axios.put(BASE_URL_CONFIG_BULK[i],REQUEST_BODY[i],{headers: HEADERS_CONFIG});
+        const newPromise = axios.put(BASE_URL[i],REQUEST_BODY[i],{headers: HEADERS});
         promises.push(newPromise);
     }
     axios
@@ -255,28 +221,22 @@ router.put('/campaigns/budgets/:budgetID', (req, res, next) => next());
 router.put('/campaigns/budgets/:budgetID', (req,res) => {
     const BUDGET_ID = req.params.budgetID;
     let BUDGET_IDS = BUDGET_ID.split(",");
-    let BASE_URL_CONFIG_BULK = [];
+    let BASE_URL = [];
     BUDGET_IDS.forEach( (value,i) => {
-        BASE_URL_CONFIG_BULK.push('https://platform.liquidm.com/api/v1/budgets/' + value);
+        BASE_URL.push('https://platform.liquidm.com/api/v1/budgets/' + value);
     });
-    const HEADERS_CONFIG = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+    const HEADERS = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
         'cache-control': 'no-cache', 
         'Content-Type': 'application/json; charset=UTF-8', 
-        authorization: AUTH_TOKEN_LIQUIDM };
+        authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
     const REQUEST_BODY = req.body;
     let CAMPAIGN_IDS= [];
-    let CONFIG_CONFIG = [];
-    REQUEST_BODY.forEach( (value,i) => {
-        CONFIG_CONFIG.push({
-            headers: REQUEST_BODY[i]
-        });
-        CAMPAIGN_IDS.push(REQUEST_BODY[i].budget.campaign_id);
-    });
+    REQUEST_BODY.forEach( (value,i) => CAMPAIGN_IDS.push(REQUEST_BODY[i].budget.campaign_id));
 
     let campaigns = { "campaigns": [] };
     let promises = [];
     for (let i = 0; i < BUDGET_IDS.length; i++) {
-        const newPromise = axios.put(BASE_URL_CONFIG_BULK[i],REQUEST_BODY[i],{headers: HEADERS_CONFIG});
+        const newPromise = axios.put(BASE_URL[i],REQUEST_BODY[i],{headers: HEADERS});
         promises.push(newPromise);
     }
     axios
@@ -295,23 +255,17 @@ router.put('/campaigns/budgets/:budgetID', (req,res) => {
 //router.post('/ads/campaignID/:campaignID/campaignName/:campaignName', (req, res, next) => next());
 // API POST ADS BULK
 router.post('/ads',(req,res) => {
-    const BASE_URL_ADS = 'https://platform.liquidm.com/api/v1/ads';
-    const HEADERS_CONFIG = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
+    const BASE_URL = 'https://platform.liquidm.com/api/v1/ads';
+    const HEADERS = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
         'cache-control': 'no-cache', 
         'Content-Type': 'application/json; charset=UTF-8', 
-        authorization: AUTH_TOKEN_LIQUIDM };
+        authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
     const REQUEST_BODY = req.body;
-    let CONFIG_CONFIG = [];
-    REQUEST_BODY.forEach( (value,i) => {
-        CONFIG_CONFIG.push({
-            headers: REQUEST_BODY[i]
-        });
-    });
 
     let ads = { ads: [] };
     let promises = [];
     for (let i = 0; i < REQUEST_BODY.length; i++) {
-        const newPromise = axios.post(BASE_URL_ADS,REQUEST_BODY[i],{headers: HEADERS_CONFIG});
+        const newPromise = axios.post(BASE_URL,REQUEST_BODY[i],{headers: HEADERS});
         promises.push(newPromise);
     }
     axios
@@ -336,20 +290,20 @@ router.post('/targeting',(req,res) => {
     const HEADERS_GEOCODE = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
         'cache-control': 'no-cache', 
         'content-type': 'application/json; charset=UTF-8', 
-        authorization: AUTH_TOKEN_LIQUIDM };
+        authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
 
     // POST MASS CREATE
     const BASE_URL_MASSCREATE = 'https://platform.liquidm.com/api/v1/geo_locations/mass_create';
     let HEADERS_MASSCREATE = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
         'cache-control': 'no-cache', 
         'content-type': 'application/json; charset=UTF-8', 
-        authorization: AUTH_TOKEN_LIQUIDM };
+        authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
 
     // PUT TARGETING
     const HEADERS_TARGETING = { 'Accept': 'application/json, text/javascript, */*; q=0.01', 
         'cache-control': 'no-cache', 
         'content-type': 'application/json; charset=UTF-8', 
-        authorization: AUTH_TOKEN_LIQUIDM };
+        authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
 
     // REQUEST BODY
     let BODY_GEOCODE = [];
@@ -418,7 +372,6 @@ router.post('/targeting',(req,res) => {
     });
 
     // REQUESTS
-    let answer;
     let targetings = { targetings: [] };
     let promises = [];
     for (let i = 0; i < REQUEST_BODY.length; i++) {
@@ -448,6 +401,39 @@ router.post('/targeting',(req,res) => {
         })
     }))
     .then(() => res.send(targeting))
+    .catch(error => res.status(400).json(error))
+});
+
+// CREATIVES
+// PATCH CREATIVE: SCRIPT-TAGS
+//router.patch('/creatives/script-tags/:creativeID', (req, res, next) => next());
+// API PATCH CREATIVE: SCRIPT-TAGS
+router.patch('/creatives/script-tags', (req,res) => {
+    const CREATIVE_IDS = [];
+    const REQUEST_BODY = req.body;
+    REQUEST_BODY.forEach( (value,i) => CREATIVE_IDS.push(REQUEST_BODY[i].data.id));
+    let BASE_URL = [];
+    CREATIVE_IDS.forEach( (value,i) => BASE_URL.push('https://platform.liquidm.com/api/v2/script-tags/' + CREATIVE_IDS[i]));
+    const HEADERS = { 'Accept': 'application/vnd.api+json', 
+        'cache-control': 'no-cache', 
+        'Content-Type': 'application/vnd.api+json', 
+        authorization: cache.get('AUTH_TOKEN_LIQUIDM') };
+
+    let creatives = { "creatives": [] };
+    let promises = [];
+    for (let i = 0; i < CREATIVE_IDS.length; i++) {
+        const newPromise = axios.patch(BASE_URL[i],REQUEST_BODY[i],{headers: HEADERS});
+        promises.push(newPromise);
+    }
+    axios
+    .all(promises)
+    .then(axios.spread( (...responses) => {
+        responses.forEach( AXIOS_RESPONSE => {
+            (AXIOS_RESPONSE) ? 
+                (creatives.creatives.push({data: AXIOS_RESPONSE.data})) : null;
+        })
+    }))
+    .then(() => res.send(creatives))
     .catch(error => res.status(400).json(error))
 });
 

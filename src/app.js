@@ -44,12 +44,15 @@ app.get("/favicon.ico", function(req, res) {
 
 app.get('/doc', (req, res) => {
   res.sendFile(__dirname + '/static/doc/index.html');
-  //res.sendFile(path.join(__dirname + '/static/doc/index.html'));
 });
 
 app.use('/api/v1', api);
 
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);
+
+process.on('uncaughtException', (err) => {
+  console.log(err);
+}); 
 
 module.exports = app;
