@@ -28,7 +28,7 @@
     "fetch": "^1.1.0",
     "helmet": "^3.15.0",
     "morgan": "^1.9.1",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.7",
     "path": "^0.12.7",
     "querystring": "^0.2.0",
     "url": "^0.11.0"
